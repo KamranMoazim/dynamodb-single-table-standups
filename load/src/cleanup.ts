@@ -58,7 +58,8 @@ if (state) {
   ];
   let items = 0;
   await inBatches(partitions, 8, async (partition) => {
-    items += await deletePartition(partition);
+    const deleted = await deletePartition(partition);
+    items += deleted;
   });
   console.log(`deleted ${items} items in ${partitions.length} partitions`);
 }

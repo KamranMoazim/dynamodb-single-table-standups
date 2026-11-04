@@ -8,11 +8,16 @@
     "test": "tsx test/plan.test.ts",
     "seed": "tsx src/seed.ts",
     "simulate": "tsx src/simulate.ts",
-    "cleanup": "tsx src/cleanup.ts"
+    "cleanup": "tsx src/cleanup.ts",
+    "costs": "tsx src/costs.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-apigatewayv2": "^3.1161.0",
+    "@aws-sdk/client-cloudwatch": "^3.1161.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1161.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.1161.0",
     "@aws-sdk/client-dynamodb": "^3.1161.0",
+    "@aws-sdk/client-lambda": "^3.1161.0",
     "@aws-sdk/lib-dynamodb": "^3.1161.0"
   },
   "devDependencies": {
