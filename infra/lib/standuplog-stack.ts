@@ -194,7 +194,6 @@ export class StandupLogStack extends Stack {
   private budget(id: string, amount: number, alertEmail: string): void {
     new budgets.CfnBudget(this, id, {
       budget: {
-        budgetName: `standuplog-${amount}-usd`,
         budgetType: 'COST',
         timeUnit: 'MONTHLY',
         budgetLimit: { amount, unit: 'USD' },
