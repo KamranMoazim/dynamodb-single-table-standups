@@ -111,7 +111,8 @@ export function TeamPage({
     return <p className={load.error ? 'error-text' : 'muted'}>{load.error ?? 'Loading...'}</p>;
   }
   const { team, members, role } = view;
-  const isMember = members.some((member) => member.userId === me.userId);
+  const myStats = members.find((member) => member.userId === me.userId);
+  const isMember = myStats !== undefined;
 
   const changeMembership = (change: () => Promise<unknown>) =>
     action.run(async () => {
@@ -128,8 +129,19 @@ export function TeamPage({
       <h2 className="page-title">{team.name}</h2>
       {isMember && (
         <section className="card">
-          <h3>Today</h3>
-          <CheckinForm team={team} onSaved={bump} />
+          <h3>
+            Today
+            {myStats && myStats.streak > 0 && (
+              <span className="badge">{myStats.streak} day streak</span>
+            )}
+          </h3>
+          <CheckinForm
+            team={team}
+            onSaved={() => {
+              bump();
+              setTimeout(() => void refresh(), 3000);
+            }}
+          />
         </section>
       )}
       <FeedSection team={team} myUserId={me.userId} version={version} />
@@ -165,6 +177,14 @@ export function TeamPage({
             <li key={member.userId} className="spread">
               <span>
                 {member.name} <span className="muted small">{member.timezone}</span>
+                {member.streak > 0 && (
+                  <span
+                    className="badge"
+                    title={`Longest ${member.longestStreak}, ${member.total} check-ins`}
+                  >
+                    {member.streak} day streak
+                  </span>
+                )}
               </span>
               {(member.userId === me.userId || role === 'owner') && (
                 <button

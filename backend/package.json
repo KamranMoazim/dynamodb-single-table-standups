@@ -7,11 +7,13 @@
     "typecheck": "tsc --noEmit",
     "test:router": "tsx test/router.test.ts",
     "test:foundation": "tsx test/foundation.test.ts",
-    "test": "npm run test:router && npm run test:rules && npm run test:foundation && npm run test:workspaces && npm run test:checkins && npm run test:reminders",
+    "test": "npm run test:router && npm run test:rules && npm run test:stats-rules && npm run test:foundation && npm run test:workspaces && npm run test:checkins && npm run test:reminders && npm run test:stats",
     "test:rules": "tsx test/rules.test.ts",
     "test:workspaces": "tsx test/workspaces.test.ts",
     "test:checkins": "tsx test/checkins.test.ts",
-    "test:reminders": "tsx test/reminders.test.ts"
+    "test:reminders": "tsx test/reminders.test.ts",
+    "test:stats-rules": "tsx test/stats-rules.test.ts",
+    "test:stats": "tsx test/stats.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",

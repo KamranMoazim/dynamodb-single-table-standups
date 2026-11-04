@@ -74,3 +74,9 @@ export function slotAt(at: Date): string {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `REMIND#${pad(Math.floor(slotMinutes / 60))}:${pad(slotMinutes % 60)}`;
 }
+
+export function addDays(date: string, days: number): string {
+  const shifted = new Date(`${date}T00:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}

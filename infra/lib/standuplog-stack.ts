@@ -13,7 +13,7 @@ import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import { DynamoEventSource, SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import type { Construct } from 'constructs';
@@ -43,6 +43,7 @@ export class StandupLogStack extends Stack {
       partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
       billing: dynamodb.Billing.onDemand(),
+      dynamoStream: dynamodb.StreamViewType.NEW_IMAGE,
       removalPolicy: RemovalPolicy.DESTROY,
       globalSecondaryIndexes: [
         this.index('GSI1', dynamodb.ProjectionType.INCLUDE),
@@ -124,7 +125,8 @@ export class StandupLogStack extends Stack {
       logGroup: this.logGroup('SiteDeploymentLogs'),
     });
 
-    this.reminders(props.senderEmail, siteOrigin);
+    const emailQueue = this.reminders(props.senderEmail, siteOrigin);
+    this.streaksAndDigest(emailQueue);
 
     this.budget('Budget1', 1, props.alertEmail);
     this.budget('Budget2', 2, props.alertEmail);
@@ -202,7 +204,7 @@ export class StandupLogStack extends Stack {
     return { bucket, distribution };
   }
 
-  private reminders(senderEmail: string, siteOrigin: string): void {
+  private reminders(senderEmail: string, siteOrigin: string): sqs.Queue {
     const deadLetters = new sqs.Queue(this, 'ReminderDeadLetters', {
       retentionPeriod: Duration.days(4),
       removalPolicy: RemovalPolicy.DESTROY,
@@ -224,7 +226,7 @@ export class StandupLogStack extends Stack {
     this.table.grantReadWriteData(schedulerFunction);
     queue.grantSendMessages(schedulerFunction);
 
-    const senderFunction = this.lambdaFunction('ReminderSender', 'src/reminders/sender.ts', {
+    const senderFunction = this.lambdaFunction('ReminderSender', 'src/email/sender.ts', {
       SENDER_EMAIL: senderEmail,
       SITE_URL: siteOrigin,
     });
@@ -239,23 +241,57 @@ export class StandupLogStack extends Stack {
       new SqsEventSource(queue, { batchSize: 10, reportBatchItemFailures: true }),
     );
 
-    const schedulerRole = new iam.Role(this, 'ReminderScheduleRole', {
+    this.schedule('ReminderSchedule', 'cron(0/15 * * * ? *)', schedulerFunction);
+    new CfnOutput(this, 'ReminderSchedulerName', { value: schedulerFunction.functionName });
+    new CfnOutput(this, 'ReminderSenderLogGroup', { value: senderFunction.logGroup.logGroupName });
+    return queue;
+  }
+
+  private streaksAndDigest(emailQueue: sqs.Queue): void {
+    const statsFunction = this.lambdaFunction('StatsFunction', 'src/stats/handler.ts');
+    this.table.grantReadWriteData(statsFunction);
+    statsFunction.addEventSource(
+      new DynamoEventSource(this.table, {
+        startingPosition: lambda.StartingPosition.LATEST,
+        batchSize: 25,
+        retryAttempts: 2,
+        bisectBatchOnError: true,
+        reportBatchItemFailures: true,
+        filters: [
+          lambda.FilterCriteria.filter({
+            eventName: lambda.FilterRule.isEqual('INSERT'),
+            dynamodb: { NewImage: { GSI1PK: { S: lambda.FilterRule.exists() } } },
+          }),
+        ],
+      }),
+    );
+
+    const digestFunction = this.lambdaFunction('DigestFunction', 'src/digest/handler.ts', {
+      QUEUE_URL: emailQueue.queueUrl,
+    });
+    digestFunction.configureAsyncInvoke({ retryAttempts: 0 });
+    this.table.grantReadData(digestFunction);
+    emailQueue.grantSendMessages(digestFunction);
+    this.schedule('DigestSchedule', 'cron(0 8 ? * MON *)', digestFunction);
+    new CfnOutput(this, 'DigestFunctionName', { value: digestFunction.functionName });
+  }
+
+  private schedule(id: string, expression: string, target: lambda.IFunction): void {
+    const role = new iam.Role(this, `${id}Role`, {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
     });
-    schedulerFunction.grantInvoke(schedulerRole);
-    new scheduler.CfnSchedule(this, 'ReminderSchedule', {
-      scheduleExpression: 'cron(0/15 * * * ? *)',
+    target.grantInvoke(role);
+    new scheduler.CfnSchedule(this, id, {
+      scheduleExpression: expression,
       scheduleExpressionTimezone: 'UTC',
       flexibleTimeWindow: { mode: 'OFF' },
       target: {
-        arn: schedulerFunction.functionArn,
-        roleArn: schedulerRole.roleArn,
+        arn: target.functionArn,
+        roleArn: role.roleArn,
         input: JSON.stringify({ scheduledTime: '<aws.scheduler.scheduled-time>' }),
         retryPolicy: { maximumRetryAttempts: 0 },
       },
     });
-    new CfnOutput(this, 'ReminderSchedulerName', { value: schedulerFunction.functionName });
-    new CfnOutput(this, 'ReminderSenderLogGroup', { value: senderFunction.logGroup.logGroupName });
   }
 
   private budget(id: string, amount: number, alertEmail: string): void {

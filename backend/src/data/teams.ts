@@ -6,7 +6,16 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { isConditionFailure } from '../lib/dynamo-errors.js';
 import { newId } from '../lib/ids.js';
-import { META_SK, memberSk, reminderSk, teamPk, teamSk, userPk, workspacePk } from '../lib/keys.js';
+import {
+  DIGEST_PK,
+  META_SK,
+  memberSk,
+  reminderSk,
+  teamPk,
+  teamSk,
+  userPk,
+  workspacePk,
+} from '../lib/keys.js';
 import { HttpError } from '../lib/router.js';
 import { TABLE_NAME, documentClient } from '../lib/table.js';
 import { reminderSlot } from '../lib/time.js';
@@ -104,7 +113,18 @@ export async function createTeam(
   await documentClient.send(
     new TransactWriteCommand({
       TransactItems: [
-        { Put: { TableName: TABLE_NAME, Item: { PK: teamPk(team.teamId), SK: META_SK, ...team } } },
+        {
+          Put: {
+            TableName: TABLE_NAME,
+            Item: {
+              PK: teamPk(team.teamId),
+              SK: META_SK,
+              ...team,
+              GSI3PK: DIGEST_PK,
+              GSI3SK: teamSk(team.teamId),
+            },
+          },
+        },
         {
           Put: {
             TableName: TABLE_NAME,

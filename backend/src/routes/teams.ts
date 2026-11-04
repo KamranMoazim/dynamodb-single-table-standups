@@ -6,10 +6,12 @@ import {
   updateTeamConfig,
   type TeamConfig,
 } from '../data/teams.js';
+import { getTeamStats } from '../data/stats.js';
 import { requireProfile } from '../data/users.js';
+import { displayedStreak } from '../stats/streak.js';
 import { requireWorkspaceRole } from '../data/workspaces.js';
 import { HttpError, type Route } from '../lib/router.js';
-import { isValidReminderTime } from '../lib/time.js';
+import { isValidReminderTime, localDate } from '../lib/time.js';
 
 export function parseTeamConfig(body: unknown): TeamConfig {
   const input = (body ?? {}) as Record<string, unknown>;
@@ -55,7 +57,22 @@ export const teamRoutes: Route[] = [
       const role = await requireWorkspaceRole(view.team.workspaceId, request.userId!).catch(() => {
         throw new HttpError(404, 'team_not_found', 'team not found');
       });
-      return { status: 200, body: { ...view, role } };
+      const statsByUser = await getTeamStats(
+        view.team.teamId,
+        view.members.map((member) => member.userId),
+      );
+      const members = view.members.map((member) => {
+        const stats = statsByUser.get(member.userId);
+        return {
+          ...member,
+          total: stats?.total ?? 0,
+          streak: stats
+            ? displayedStreak(stats, localDate(member.timezone), view.team.workdays)
+            : 0,
+          longestStreak: stats?.longestStreak ?? 0,
+        };
+      });
+      return { status: 200, body: { ...view, members, role } };
     },
   },
   {

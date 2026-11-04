@@ -124,7 +124,7 @@ const functions = ofType('AWS::Lambda::Function').filter(
 );
 check(
   'app lambdas',
-  functions.length === 3 &&
+  functions.length === 5 &&
     functions.every(
       (fn) =>
         fn.Properties.Runtime === 'nodejs22.x' &&
@@ -134,7 +134,22 @@ check(
   functions.map((fn) => fn.Properties),
 );
 
-const [schedule] = ofType('AWS::Scheduler::Schedule');
+const schedules = ofType('AWS::Scheduler::Schedule');
+const schedule = schedules.find((item) => item.Properties.ScheduleExpression.includes('0/15'));
+const digestSchedule = schedules.find(
+  (item) => item.Properties.ScheduleExpression === 'cron(0 8 ? * MON *)',
+);
+check(
+  'weekly digest schedule',
+  schedules.length === 2 &&
+    digestSchedule?.Properties.Target.RetryPolicy.MaximumRetryAttempts === 0,
+  schedules.map((item) => item.Properties.ScheduleExpression),
+);
+check(
+  'table stream new image',
+  tableProps.StreamSpecification?.StreamViewType === 'NEW_IMAGE',
+  tableProps.StreamSpecification,
+);
 check(
   'reminder schedule every 15 minutes, no retries',
   schedule?.Properties.ScheduleExpression === 'cron(0/15 * * * ? *)' &&
@@ -158,7 +173,27 @@ check(
   queues.map((queue) => queue.Properties),
 );
 
-const [mapping] = ofType('AWS::Lambda::EventSourceMapping');
+const mappings = ofType('AWS::Lambda::EventSourceMapping');
+const mapping = mappings.find((item) => item.Properties.BatchSize === 10);
+const streamMapping = mappings.find((item) => item.Properties.StartingPosition === 'LATEST');
+check(
+  'stats stream only sees new check-ins',
+  json(streamMapping?.Properties.FilterCriteria) ===
+    json({
+      Filters: [
+        {
+          Pattern: json({
+            eventName: ['INSERT'],
+            dynamodb: { NewImage: { GSI1PK: { S: [{ exists: true }] } } },
+          }),
+        },
+      ],
+    }) &&
+    streamMapping?.Properties.BisectBatchOnFunctionError === true &&
+    streamMapping?.Properties.MaximumRetryAttempts === 2 &&
+    json(streamMapping?.Properties.FunctionResponseTypes) === json(['ReportBatchItemFailures']),
+  streamMapping?.Properties,
+);
 check(
   'sender reports partial batch failures',
   mapping?.Properties.BatchSize === 10 &&

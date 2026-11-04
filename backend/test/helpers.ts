@@ -18,6 +18,7 @@ export interface StackOutputs {
   SiteBucketName: string;
   ReminderSchedulerName: string;
   ReminderSenderLogGroup: string;
+  DigestFunctionName: string;
 }
 
 export function loadOutputs(): StackOutputs {

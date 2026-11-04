@@ -1,5 +1,5 @@
 import { HttpError } from '../src/lib/router.js';
-import { renderReminder } from '../src/reminders/message.js';
+import { renderReminder } from '../src/email/templates.js';
 import { planReminder } from '../src/reminders/plan.js';
 import { parseCheckin } from '../src/routes/checkins.js';
 import {
@@ -168,6 +168,7 @@ check(
 
 const rendered = renderReminder(
   {
+    kind: 'reminder',
     to: 'a@example.com',
     name: '<Ana>',
     teamId: 't1',

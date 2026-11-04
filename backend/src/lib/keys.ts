@@ -16,3 +16,5 @@ export const reactionSk = (date: string, userId: string, emoji: string, byUserId
   `${checkinSk(date, userId)}#R#${emoji}#${byUserId}`;
 export const historySk = (date: string, teamId: string) => `DAY#${date}#TEAM#${teamId}`;
 export const blockersPk = (teamId: string) => `BLOCKERS#${teamId}`;
+export const statsSk = (teamId: string) => `STATS#${teamId}`;
+export const DIGEST_PK = 'DIGEST';

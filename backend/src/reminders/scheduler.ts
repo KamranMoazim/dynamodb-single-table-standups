@@ -3,7 +3,7 @@ import { SQSClient, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { META_SK, PROFILE_SK, checkinSk, memberSk, teamPk, userPk } from '../lib/keys.js';
 import { TABLE_NAME, documentClient } from '../lib/table.js';
 import { slotAt } from '../lib/time.js';
-import type { ReminderMessage } from './message.js';
+import type { ReminderMessage } from '../email/templates.js';
 import { planReminder } from './plan.js';
 
 const sqs = new SQSClient({});
@@ -128,6 +128,7 @@ export async function handler(event: { scheduledTime?: string }): Promise<Schedu
       continue;
     }
     messages.push({
+      kind: 'reminder',
       to: profile!.email,
       name: member.name,
       teamId,

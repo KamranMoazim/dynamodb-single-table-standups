@@ -77,7 +77,15 @@ export interface Team extends TeamConfig {
 
 export interface TeamView {
   team: Team;
-  members: { userId: string; name: string; timezone: string; joinedAt: string }[];
+  members: {
+    userId: string;
+    name: string;
+    timezone: string;
+    joinedAt: string;
+    total: number;
+    streak: number;
+    longestStreak: number;
+  }[];
   role: Role;
 }
 

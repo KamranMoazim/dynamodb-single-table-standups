@@ -1,6 +1,6 @@
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2';
 import type { SQSBatchResponse, SQSEvent } from 'aws-lambda';
-import { renderReminder, type ReminderMessage } from './message.js';
+import { renderEmail, type EmailMessage } from './templates.js';
 
 const ses = new SESv2Client({});
 const SENDER_EMAIL = process.env.SENDER_EMAIL!;
@@ -9,8 +9,9 @@ const SITE_URL = process.env.SITE_URL!;
 export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
   const failures: SQSBatchResponse['batchItemFailures'] = [];
   for (const record of event.Records) {
-    const message = JSON.parse(record.body) as ReminderMessage;
-    const email = renderReminder(message, SITE_URL);
+    const message = JSON.parse(record.body) as EmailMessage;
+    const kind = message.kind ?? 'reminder';
+    const email = renderEmail({ ...message, kind } as EmailMessage, SITE_URL);
     try {
       await ses.send(
         new SendEmailCommand({
@@ -24,9 +25,9 @@ export async function handler(event: SQSEvent): Promise<SQSBatchResponse> {
           },
         }),
       );
-      console.log(`sent reminder team=${message.teamId} date=${message.date}`);
+      console.log(`sent ${kind} team=${message.teamId}`);
     } catch (error) {
-      console.error(`reminder failed team=${message.teamId}: ${(error as Error).name}`);
+      console.error(`${kind} failed team=${message.teamId}: ${(error as Error).name}`);
       failures.push({ itemIdentifier: record.messageId });
     }
   }
