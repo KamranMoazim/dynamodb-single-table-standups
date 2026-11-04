@@ -6,6 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsx test/stack.test.ts",
+    "client-config": "tsx scripts/client-config.ts",
     "synth": "cdk synth",
     "deploy": "cdk deploy --require-approval never --outputs-file cdk-outputs.json",
     "destroy": "cdk destroy --force"

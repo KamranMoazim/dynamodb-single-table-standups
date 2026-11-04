@@ -9,8 +9,8 @@
     "infra:test": "npm --prefix infra test",
     "infra:activate-cost-tag": "aws ce update-cost-allocation-tags-status --cost-allocation-tags-status TagKey=project,Status=Active",
     "backend:test": "npm --prefix backend test",
-    "client:config": "npx tsx scripts/client-config.ts",
+    "client:config": "npm --prefix infra run -s client-config",
     "client:dev": "npm --prefix client run dev",
-    "format": "npx prettier@3.6.2 --write infra/bin infra/lib infra/test backend/src backend/test client/src scripts"
+    "format": "npx prettier@3.6.2 --write infra/bin infra/lib infra/test backend/src backend/test client/src infra/scripts"
   }
 }
