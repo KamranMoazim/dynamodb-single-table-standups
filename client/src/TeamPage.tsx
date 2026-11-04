@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, type Me, type TeamConfig, type TeamView } from './api';
+import { BlockersSection } from './BlockersSection';
+import { CheckinForm } from './CheckinForm';
+import { FeedSection } from './FeedSection';
 import { useAction } from './useAction';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -94,6 +97,8 @@ export function TeamPage({
   onChanged: () => void;
 }) {
   const [view, setView] = useState<TeamView | null>(null);
+  const [version, setVersion] = useState(0);
+  const bump = () => setVersion((current) => current + 1);
   const load = useAction();
   const action = useAction();
 
@@ -121,8 +126,21 @@ export function TeamPage({
         <a href={`#/w/${team.workspaceId}`}>Back to workspace</a>
       </p>
       <h2 className="page-title">{team.name}</h2>
+      {isMember && (
+        <section className="card">
+          <h3>Today</h3>
+          <CheckinForm team={team} onSaved={bump} />
+        </section>
+      )}
+      <FeedSection team={team} myUserId={me.userId} version={version} />
+      <BlockersSection
+        teamId={teamId}
+        canResolve={isMember || role === 'owner'}
+        version={version}
+        onChanged={bump}
+      />
       <section className="card">
-        <h3>Standup</h3>
+        <h3>Standup settings</h3>
         {role === 'owner' ? (
           <ConfigForm key={JSON.stringify(team)} teamId={teamId} initial={team} onSaved={refresh} />
         ) : (

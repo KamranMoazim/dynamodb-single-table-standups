@@ -224,3 +224,14 @@ export async function removeTeamMember(teamId: string, userId: string): Promise<
     throw error;
   }
 }
+
+export async function isTeamMember(teamId: string, userId: string): Promise<boolean> {
+  const { Item } = await documentClient.send(
+    new GetCommand({
+      TableName: TABLE_NAME,
+      Key: { PK: teamPk(teamId), SK: memberSk(userId) },
+      ProjectionExpression: 'PK',
+    }),
+  );
+  return Boolean(Item);
+}

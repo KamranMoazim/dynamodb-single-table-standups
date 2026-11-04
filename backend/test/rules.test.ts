@@ -1,5 +1,13 @@
 import { HttpError } from '../src/lib/router.js';
-import { isValidReminderTime, isValidTimeZone, reminderSlot } from '../src/lib/time.js';
+import { parseCheckin } from '../src/routes/checkins.js';
+import {
+  isValidDate,
+  isValidReminderTime,
+  isValidTimeZone,
+  localDate,
+  reminderSlot,
+  weekdayOf,
+} from '../src/lib/time.js';
 import { parseTeamConfig } from '../src/routes/teams.js';
 import { check, finish } from './helpers.js';
 
@@ -53,5 +61,50 @@ rejects('config rejects duplicate days', { ...valid, workdays: [1, 1] });
 rejects('config rejects no days', { ...valid, workdays: [] });
 rejects('config rejects odd time', { ...valid, reminderTime: '08:20' });
 rejects('config rejects missing body', undefined);
+
+const lateUtc = new Date('2026-11-04T22:30:00Z');
+check('local date ahead of utc', localDate('Asia/Karachi', lateUtc) === '2026-11-05');
+check(
+  'local date behind utc',
+  localDate('America/Los_Angeles', new Date('2026-11-05T03:00:00Z')) === '2026-11-04',
+);
+check('weekday of date', weekdayOf('2026-11-04') === 3 && weekdayOf('2026-11-08') === 0);
+check(
+  'valid date',
+  isValidDate('2026-02-28') &&
+    !isValidDate('2026-02-30') &&
+    !isValidDate('2026-13-01') &&
+    !isValidDate('2026-00-10') &&
+    !isValidDate('2026-2-3') &&
+    !isValidDate('x'),
+);
+
+const checkinRejects = (name: string, body: unknown) => {
+  try {
+    parseCheckin(body);
+    check(name, false, 'accepted');
+  } catch (error) {
+    check(name, error instanceof HttpError && error.status === 400, error);
+  }
+};
+const checkin = parseCheckin({ answers: [' did x ', '', 'none'], blocker: '  ' });
+check(
+  'checkin trims, blank blocker is null',
+  JSON.stringify(checkin) === JSON.stringify({ answers: ['did x', '', 'none'], blocker: null }),
+  checkin,
+);
+check(
+  'checkin keeps blocker',
+  parseCheckin({ answers: ['a', 'b', 'c'], blocker: ' waiting on API ' }).blocker ===
+    'waiting on API',
+);
+checkinRejects('checkin needs 3 answers', { answers: ['a', 'b'] });
+checkinRejects('checkin rejects all blank', { answers: [' ', '', ''] });
+checkinRejects('checkin caps answer length', { answers: ['x'.repeat(1001), 'b', 'c'] });
+checkinRejects('checkin caps blocker length', {
+  answers: ['a', 'b', 'c'],
+  blocker: 'x'.repeat(501),
+});
+checkinRejects('checkin rejects non-string blocker', { answers: ['a', 'b', 'c'], blocker: 5 });
 
 finish();

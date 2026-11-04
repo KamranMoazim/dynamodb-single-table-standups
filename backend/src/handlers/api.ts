@@ -1,4 +1,5 @@
 import { createRouter } from '../lib/router.js';
+import { checkinRoutes } from '../routes/checkins.js';
 import { healthRoutes } from '../routes/health.js';
 import { meRoutes } from '../routes/me.js';
 import { teamRoutes } from '../routes/teams.js';
@@ -9,4 +10,5 @@ export const handler = createRouter([
   ...meRoutes,
   ...workspaceRoutes,
   ...teamRoutes,
+  ...checkinRoutes,
 ]);

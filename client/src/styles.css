@@ -208,3 +208,60 @@ button:disabled {
 .contents {
   display: contents;
 }
+textarea {
+  font: inherit;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  resize: vertical;
+  background: var(--card);
+  color: var(--text);
+}
+h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.entry {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.entry:first-of-type {
+  border-top: 0;
+}
+.entry dl {
+  margin-bottom: 8px;
+}
+.blocker {
+  background: var(--error);
+  padding: 6px 10px;
+  border-radius: 8px;
+  margin: 8px 0;
+}
+.blocker.resolved {
+  background: var(--ok);
+  text-decoration: line-through;
+}
+.reactions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+button.reaction {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  font-size: 14px;
+}
+button.reaction.mine {
+  border-color: var(--accent);
+  background: #e8eefc;
+}
+.comments {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}

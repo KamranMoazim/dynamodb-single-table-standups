@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 export type RouteView =
   | { page: 'home' }
   | { page: 'profile' }
+  | { page: 'history' }
   | { page: 'workspace'; workspaceId: string }
   | { page: 'team'; teamId: string };
 
@@ -16,6 +17,9 @@ export function parseHash(hash: string): RouteView {
   }
   if (page === 'profile') {
     return { page: 'profile' };
+  }
+  if (page === 'history') {
+    return { page: 'history' };
   }
   return { page: 'home' };
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ApiError, type Me } from './api';
 import { AuthScreen } from './AuthScreen';
 import { currentSession, signOut } from './auth';
+import { HistoryPage } from './HistoryPage';
 import { Home } from './Home';
 import { ProfileForm } from './ProfileForm';
 import { useHashRoute } from './route';
@@ -51,6 +52,7 @@ export function App() {
           <a href="#/">StandupLog</a>
         </h1>
         <nav className="row tight">
+          <a href="#/history">History</a>
           <a href="#/profile">{me.profile?.name ?? me.email}</a>
           <button
             className="secondary small"
@@ -74,6 +76,8 @@ export function App() {
         />
       ) : route.page === 'workspace' ? (
         <WorkspacePage workspaceId={route.workspaceId} me={me} onChanged={loadMe} />
+      ) : route.page === 'history' ? (
+        <HistoryPage me={me} />
       ) : route.page === 'team' ? (
         <TeamPage teamId={route.teamId} me={me} onChanged={loadMe} />
       ) : (

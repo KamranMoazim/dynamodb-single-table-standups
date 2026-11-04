@@ -81,6 +81,57 @@ export interface TeamView {
   role: Role;
 }
 
+export interface CheckinInput {
+  answers: string[];
+  blocker: string | null;
+}
+
+export interface Checkin extends CheckinInput {
+  teamId: string;
+  userId: string;
+  date: string;
+  authorName: string;
+  createdAt: string;
+  updatedAt: string;
+  blockerResolvedBy?: string;
+  blockerResolvedAt?: string;
+}
+
+export interface Comment {
+  commentId: string;
+  byUserId: string;
+  byName: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface FeedEntry extends Checkin {
+  comments: Comment[];
+  reactions: Record<string, { userId: string; name: string }[]>;
+}
+
+export interface Feed {
+  date: string;
+  isWorkday: boolean;
+  checkins: FeedEntry[];
+  missing: { userId: string; name: string }[];
+}
+
+export interface Blocker {
+  userId: string;
+  date: string;
+  authorName: string;
+  blocker: string;
+}
+
+export type HistoryEntry = Pick<
+  Checkin,
+  'teamId' | 'userId' | 'date' | 'authorName' | 'answers' | 'blocker'
+>;
+
+const checkinPath = (teamId: string, date: string, userId: string) =>
+  `/teams/${teamId}/checkins/${date}/${userId}`;
+
 export const api = {
   me: () => apiCall<Me>('GET', '/me'),
   saveProfile: (profile: Profile) => apiCall<{ profile: Profile }>('PUT', '/me', profile),
@@ -97,4 +148,30 @@ export const api = {
   joinTeam: (teamId: string) => apiCall<{ joined: boolean }>('POST', `/teams/${teamId}/join`),
   removeTeamMember: (teamId: string, userId: string) =>
     apiCall<{ removed: boolean }>('DELETE', `/teams/${teamId}/members/${userId}`),
+  todayCheckin: (teamId: string) =>
+    apiCall<{ date: string; checkin: Checkin | null }>('GET', `/teams/${teamId}/checkins/today`),
+  submitCheckin: (teamId: string, input: CheckinInput) =>
+    apiCall<{ checkin: Checkin }>('POST', `/teams/${teamId}/checkins`, input),
+  editCheckin: (teamId: string, input: CheckinInput) =>
+    apiCall<{ checkin: Checkin }>('PUT', `/teams/${teamId}/checkins/today`, input),
+  feed: (teamId: string, date?: string) =>
+    apiCall<Feed>('GET', `/teams/${teamId}/feed${date ? `?date=${date}` : ''}`),
+  comment: (teamId: string, date: string, userId: string, text: string) =>
+    apiCall<{ comment: Comment }>('POST', `${checkinPath(teamId, date, userId)}/comments`, {
+      text,
+    }),
+  react: (teamId: string, date: string, userId: string, emoji: string, on: boolean) =>
+    apiCall<{ reacted: boolean }>(
+      on ? 'PUT' : 'DELETE',
+      `${checkinPath(teamId, date, userId)}/reactions/${emoji}`,
+    ),
+  blockers: (teamId: string) =>
+    apiCall<{ blockers: Blocker[] }>('GET', `/teams/${teamId}/blockers`),
+  resolveBlocker: (teamId: string, date: string, userId: string) =>
+    apiCall<{ resolved: boolean }>('POST', `/teams/${teamId}/blockers/${date}/${userId}/resolve`),
+  history: (cursor?: string | null) =>
+    apiCall<{ checkins: HistoryEntry[]; nextCursor: string | null }>(
+      'GET',
+      `/me/checkins${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+    ),
 };

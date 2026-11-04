@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, type Profile } from './api';
 import { useAction } from './useAction';
 
-const TIME_ZONES = Intl.supportedValuesOf('timeZone');
+const SUPPORTED_ZONES = Intl.supportedValuesOf('timeZone');
 
 export function ProfileForm({
   profile,
@@ -16,6 +16,7 @@ export function ProfileForm({
     profile?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
   const { busy, error, run } = useAction();
+  const zones = [...new Set(['UTC', timezone, ...SUPPORTED_ZONES])].sort();
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -40,7 +41,7 @@ export function ProfileForm({
       <label>
         Timezone
         <select value={timezone} onChange={(event) => setTimezone(event.target.value)}>
-          {TIME_ZONES.map((zone) => (
+          {zones.map((zone) => (
             <option key={zone}>{zone}</option>
           ))}
         </select>
