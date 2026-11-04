@@ -1,0 +1,10 @@
+export const userPk = (userId: string) => `USER#${userId}`;
+export const workspacePk = (workspaceId: string) => `WS#${workspaceId}`;
+export const invitePk = (code: string) => `INVITE#${code}`;
+export const teamPk = (teamId: string) => `TEAM#${teamId}`;
+export const memberSk = (userId: string) => `MEMBER#${userId}`;
+export const workspaceSk = (workspaceId: string) => `WS#${workspaceId}`;
+export const teamSk = (teamId: string) => `TEAM#${teamId}`;
+export const reminderSk = (teamId: string, userId: string) => `TEAM#${teamId}#USER#${userId}`;
+export const PROFILE_SK = 'PROFILE';
+export const META_SK = 'META';

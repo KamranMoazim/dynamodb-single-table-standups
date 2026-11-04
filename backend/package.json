@@ -7,7 +7,9 @@
     "typecheck": "tsc --noEmit",
     "test:router": "tsx test/router.test.ts",
     "test:foundation": "tsx test/foundation.test.ts",
-    "test": "npm run test:router && npm run test:foundation"
+    "test": "npm run test:router && npm run test:rules && npm run test:foundation && npm run test:workspaces",
+    "test:rules": "tsx test/rules.test.ts",
+    "test:workspaces": "tsx test/workspaces.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1161.0",

@@ -24,7 +24,9 @@ try {
   response = await call('GET', '/me', { token: user.token });
   check(
     'me with token',
-    response.status === 200 && response.body.userId === user.userId && response.body.email === user.email,
+    response.status === 200 &&
+      response.body.userId === user.userId &&
+      response.body.email === user.email,
     response,
   );
 

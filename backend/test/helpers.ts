@@ -117,3 +117,46 @@ export async function createTestUser(label: string): Promise<TestUser> {
     },
   };
 }
+
+export async function deletePartitions(
+  region: string,
+  tableName: string,
+  partitionKeys: string[],
+): Promise<void> {
+  const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb');
+  const { BatchWriteCommand, DynamoDBDocumentClient, QueryCommand } = await import(
+    '@aws-sdk/lib-dynamodb'
+  );
+  const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region }));
+  for (const partitionKey of partitionKeys) {
+    const { Items = [] } = await documentClient.send(
+      new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: 'PK = :pk',
+        ExpressionAttributeValues: { ':pk': partitionKey },
+        ProjectionExpression: 'PK, SK',
+      }),
+    );
+    for (let start = 0; start < Items.length; start += 25) {
+      await documentClient.send(
+        new BatchWriteCommand({
+          RequestItems: {
+            [tableName]: Items.slice(start, start + 25).map((item) => ({
+              DeleteRequest: { Key: { PK: item.PK, SK: item.SK } },
+            })),
+          },
+        }),
+      );
+    }
+  }
+}
+
+export async function eventually(probe: () => Promise<boolean>, attempts = 10): Promise<boolean> {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (await probe()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
