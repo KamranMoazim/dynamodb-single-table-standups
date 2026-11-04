@@ -8,3 +8,5 @@ cdk-outputs.json
 APP.MD
 docs/superpowers/
 client/public/config.json
+load/state.json
+load/results/

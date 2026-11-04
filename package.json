@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "install:all": "npm --prefix infra install && npm --prefix backend install && npm --prefix client install",
+    "install:all": "npm --prefix infra install && npm --prefix backend install && npm --prefix client install && npm --prefix load install",
     "infra:deploy": "npm --prefix client run build && npm --prefix infra run deploy",
     "infra:destroy": "npm --prefix infra run destroy",
     "infra:test": "npm --prefix infra test",
@@ -11,6 +11,9 @@
     "backend:test": "npm --prefix backend test",
     "client:config": "npm --prefix infra run -s client-config",
     "client:dev": "npm --prefix client run dev",
-    "format": "npx prettier@3.6.2 --write infra/bin infra/lib infra/test backend/src backend/test client/src infra/scripts"
+    "format": "npx prettier@3.6.2 --write infra/bin infra/lib infra/test backend/src backend/test client/src infra/scripts load/src load/test",
+    "load:seed": "npm --prefix load run seed",
+    "load:simulate": "npm --prefix load run simulate --",
+    "load:cleanup": "npm --prefix load run cleanup"
   }
 }
