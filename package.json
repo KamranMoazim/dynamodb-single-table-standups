@@ -1,0 +1,16 @@
+{
+  "name": "dynamodb-single-table-standups",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "install:all": "npm --prefix infra install && npm --prefix backend install && npm --prefix client install",
+    "infra:deploy": "npm --prefix client run build && npm --prefix infra run deploy",
+    "infra:destroy": "npm --prefix infra run destroy",
+    "infra:test": "npm --prefix infra test",
+    "infra:activate-cost-tag": "aws ce update-cost-allocation-tags-status --cost-allocation-tags-status TagKey=project,Status=Active",
+    "backend:test": "npm --prefix backend test",
+    "client:config": "npx tsx scripts/client-config.ts",
+    "client:dev": "npm --prefix client run dev",
+    "format": "npx prettier@3.6.2 --write infra/bin infra/lib infra/test backend/src backend/test client/src scripts"
+  }
+}

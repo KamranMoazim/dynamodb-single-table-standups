@@ -1,0 +1,10 @@
+node_modules
+dist
+cdk.out
+cdk-outputs.json
+.env
+*.log
+.DS_Store
+APP.MD
+docs/superpowers/
+client/public/config.json
