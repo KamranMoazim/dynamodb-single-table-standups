@@ -1,4 +1,6 @@
 import { HttpError } from '../src/lib/router.js';
+import { renderReminder } from '../src/reminders/message.js';
+import { planReminder } from '../src/reminders/plan.js';
 import { parseCheckin } from '../src/routes/checkins.js';
 import {
   isValidDate,
@@ -6,6 +8,7 @@ import {
   isValidTimeZone,
   localDate,
   reminderSlot,
+  slotAt,
   weekdayOf,
 } from '../src/lib/time.js';
 import { parseTeamConfig } from '../src/routes/teams.js';
@@ -106,5 +109,81 @@ checkinRejects('checkin caps blocker length', {
   blocker: 'x'.repeat(501),
 });
 checkinRejects('checkin rejects non-string blocker', { answers: ['a', 'b', 'c'], blocker: 5 });
+
+check(
+  'slot floors to 15 minutes',
+  slotAt(new Date('2026-11-04T10:44:59Z')) === 'REMIND#10:30' &&
+    slotAt(new Date('2026-11-04T10:45:00Z')) === 'REMIND#10:45',
+);
+
+const wednesday = new Date('2026-11-04T04:00:00Z');
+const base = {
+  slot: 'REMIND#04:00',
+  now: wednesday,
+  workdays: [1, 2, 3, 4, 5],
+  reminderTime: '09:00',
+  timezone: 'Asia/Karachi',
+  email: 'a@example.com',
+  hasCheckin: () => false,
+};
+let decision = planReminder(base);
+check(
+  'reminder due',
+  decision.send &&
+    decision.reason === 'due' &&
+    decision.date === '2026-11-04' &&
+    decision.correctSlot === 'REMIND#04:00',
+  decision,
+);
+decision = planReminder({ ...base, workdays: [1, 2, 4, 5] });
+check('no reminder on non workday', !decision.send && decision.reason === 'not_workday', decision);
+decision = planReminder({ ...base, hasCheckin: (date) => date === '2026-11-04' });
+check('no reminder after check-in', !decision.send && decision.reason === 'checked_in', decision);
+decision = planReminder({ ...base, email: null });
+check('no reminder without email', !decision.send && decision.reason === 'no_email', decision);
+decision = planReminder({
+  ...base,
+  timezone: 'Pacific/Auckland',
+  reminderTime: '08:00',
+  workdays: [4],
+  now: new Date('2026-11-04T19:00:00Z'),
+  slot: 'REMIND#19:00',
+});
+check(
+  'uses the member local date and weekday',
+  decision.send && decision.date === '2026-11-05',
+  decision,
+);
+decision = planReminder({
+  ...base,
+  timezone: 'America/New_York',
+  now: new Date('2026-11-04T13:00:00Z'),
+  slot: 'REMIND#13:00',
+});
+check(
+  'stale slot after DST still sends and reports the fix',
+  decision.send && decision.correctSlot === 'REMIND#14:00',
+  decision,
+);
+
+const rendered = renderReminder(
+  {
+    to: 'a@example.com',
+    name: '<Ana>',
+    teamId: 't1',
+    teamName: 'Core & Ops',
+    date: '2026-11-04',
+    questions: ['Q1?', 'Q2?', 'Q3?'],
+  },
+  'https://site.example',
+);
+check(
+  'reminder email escapes html and links the team',
+  rendered.subject === 'Standup for Core & Ops (2026-11-04)' &&
+    rendered.html.includes('&#60;Ana&#62;') &&
+    rendered.html.includes('Core &#38; Ops') &&
+    rendered.text.includes('https://site.example/#/t/t1'),
+  rendered,
+);
 
 finish();

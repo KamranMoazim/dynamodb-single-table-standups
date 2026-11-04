@@ -12,11 +12,16 @@ import { NodejsFunction, OutputFormat } from 'aws-cdk-lib/aws-lambda-nodejs';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
+import * as scheduler from 'aws-cdk-lib/aws-scheduler';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
 import type { Construct } from 'constructs';
 import { fileURLToPath } from 'node:url';
 
 export interface StandupLogStackProps extends StackProps {
   alertEmail: string;
+  senderEmail: string;
   clientDistPath: string;
 }
 
@@ -119,6 +124,8 @@ export class StandupLogStack extends Stack {
       logGroup: this.logGroup('SiteDeploymentLogs'),
     });
 
+    this.reminders(props.senderEmail, siteOrigin);
+
     this.budget('Budget1', 1, props.alertEmail);
     this.budget('Budget2', 2, props.alertEmail);
 
@@ -152,7 +159,11 @@ export class StandupLogStack extends Stack {
     });
   }
 
-  private lambdaFunction(id: string, entry: string): NodejsFunction {
+  private lambdaFunction(
+    id: string,
+    entry: string,
+    environment: Record<string, string> = {},
+  ): NodejsFunction {
     return new NodejsFunction(this, id, {
       entry: backendPath(entry),
       depsLockFilePath: backendPath('package-lock.json'),
@@ -160,7 +171,7 @@ export class StandupLogStack extends Stack {
       architecture: lambda.Architecture.ARM_64,
       memorySize: 256,
       timeout: Duration.seconds(10),
-      environment: { TABLE_NAME: this.table.tableName, LOG_LEVEL: 'INFO' },
+      environment: { TABLE_NAME: this.table.tableName, LOG_LEVEL: 'INFO', ...environment },
       bundling: { format: OutputFormat.ESM, minify: true },
       logGroup: this.logGroup(`${id}Logs`),
     });
@@ -189,6 +200,62 @@ export class StandupLogStack extends Stack {
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
     });
     return { bucket, distribution };
+  }
+
+  private reminders(senderEmail: string, siteOrigin: string): void {
+    const deadLetters = new sqs.Queue(this, 'ReminderDeadLetters', {
+      retentionPeriod: Duration.days(4),
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const queue = new sqs.Queue(this, 'ReminderQueue', {
+      visibilityTimeout: Duration.seconds(60),
+      deadLetterQueue: { queue: deadLetters, maxReceiveCount: 3 },
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    const schedulerFunction = this.lambdaFunction(
+      'ReminderScheduler',
+      'src/reminders/scheduler.ts',
+      {
+        QUEUE_URL: queue.queueUrl,
+      },
+    );
+    schedulerFunction.configureAsyncInvoke({ retryAttempts: 0 });
+    this.table.grantReadWriteData(schedulerFunction);
+    queue.grantSendMessages(schedulerFunction);
+
+    const senderFunction = this.lambdaFunction('ReminderSender', 'src/reminders/sender.ts', {
+      SENDER_EMAIL: senderEmail,
+      SITE_URL: siteOrigin,
+    });
+    const senderDomain = senderEmail.replace(/^.*@/, '').replace(/>.*$/, '');
+    senderFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ['ses:SendEmail'],
+        resources: [`arn:aws:ses:${this.region}:${this.account}:identity/${senderDomain}`],
+      }),
+    );
+    senderFunction.addEventSource(
+      new SqsEventSource(queue, { batchSize: 10, reportBatchItemFailures: true }),
+    );
+
+    const schedulerRole = new iam.Role(this, 'ReminderScheduleRole', {
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    schedulerFunction.grantInvoke(schedulerRole);
+    new scheduler.CfnSchedule(this, 'ReminderSchedule', {
+      scheduleExpression: 'cron(0/15 * * * ? *)',
+      scheduleExpressionTimezone: 'UTC',
+      flexibleTimeWindow: { mode: 'OFF' },
+      target: {
+        arn: schedulerFunction.functionArn,
+        roleArn: schedulerRole.roleArn,
+        input: JSON.stringify({ scheduledTime: '<aws.scheduler.scheduled-time>' }),
+        retryPolicy: { maximumRetryAttempts: 0 },
+      },
+    });
+    new CfnOutput(this, 'ReminderSchedulerName', { value: schedulerFunction.functionName });
+    new CfnOutput(this, 'ReminderSenderLogGroup', { value: senderFunction.logGroup.logGroupName });
   }
 
   private budget(id: string, amount: number, alertEmail: string): void {

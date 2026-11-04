@@ -21,6 +21,7 @@ writeFileSync(join(distPath, 'index.html'), '<div id="root"></div>');
 const stack = new StandupLogStack(new App(), 'TestStack', {
   env: { account: '111111111111', region: 'us-east-1' },
   alertEmail: 'test@example.com',
+  senderEmail: 'StandupLog <noreply@example.org>',
   clientDistPath: distPath,
 });
 const template = Template.fromStack(stack);
@@ -122,12 +123,55 @@ const functions = ofType('AWS::Lambda::Function').filter(
   (fn) => fn.Properties.Environment?.Variables?.TABLE_NAME,
 );
 check(
-  'api lambda',
-  functions.length === 1 &&
-    functions[0].Properties.Runtime === 'nodejs22.x' &&
-    json(functions[0].Properties.Architectures) === json(['arm64']) &&
-    functions[0].Properties.Environment.Variables.LOG_LEVEL === 'INFO',
+  'app lambdas',
+  functions.length === 3 &&
+    functions.every(
+      (fn) =>
+        fn.Properties.Runtime === 'nodejs22.x' &&
+        json(fn.Properties.Architectures) === json(['arm64']) &&
+        fn.Properties.Environment.Variables.LOG_LEVEL === 'INFO',
+    ),
   functions.map((fn) => fn.Properties),
+);
+
+const [schedule] = ofType('AWS::Scheduler::Schedule');
+check(
+  'reminder schedule every 15 minutes, no retries',
+  schedule?.Properties.ScheduleExpression === 'cron(0/15 * * * ? *)' &&
+    schedule.Properties.ScheduleExpressionTimezone === 'UTC' &&
+    schedule.Properties.Target.RetryPolicy.MaximumRetryAttempts === 0 &&
+    schedule.Properties.Target.Input.includes('<aws.scheduler.scheduled-time>'),
+  schedule?.Properties,
+);
+check(
+  'scheduler lambda async retries off',
+  ofType('AWS::Lambda::EventInvokeConfig').some(
+    (config) => config.Properties.MaximumRetryAttempts === 0,
+  ),
+);
+
+const queues = ofType('AWS::SQS::Queue');
+check(
+  'reminder queue with dead letters',
+  queues.length === 2 &&
+    queues.some((queue) => queue.Properties.RedrivePolicy?.maxReceiveCount === 3),
+  queues.map((queue) => queue.Properties),
+);
+
+const [mapping] = ofType('AWS::Lambda::EventSourceMapping');
+check(
+  'sender reports partial batch failures',
+  mapping?.Properties.BatchSize === 10 &&
+    json(mapping.Properties.FunctionResponseTypes) === json(['ReportBatchItemFailures']),
+  mapping?.Properties,
+);
+
+const policies = json(ofType('AWS::IAM::Policy').map((policy) => policy.Properties.PolicyDocument));
+check(
+  'ses send scoped to sender domain',
+  policies.includes('ses:SendEmail') &&
+    policies.includes(':identity/example.org') &&
+    !policies.includes('"ses:*"'),
 );
 
 const [authorizer] = ofType('AWS::ApiGatewayV2::Authorizer');

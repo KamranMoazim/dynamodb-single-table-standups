@@ -67,3 +67,10 @@ export function isValidDate(value: string): boolean {
   const parsed = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
 }
+
+export function slotAt(at: Date): string {
+  const minutes = at.getUTCHours() * 60 + at.getUTCMinutes();
+  const slotMinutes = minutes - (minutes % 15);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `REMIND#${pad(Math.floor(slotMinutes / 60))}:${pad(slotMinutes % 60)}`;
+}
